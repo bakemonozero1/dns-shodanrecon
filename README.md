@@ -12,6 +12,8 @@ A shodan API Key, without a key this tool only solves the ip address for a given
 This tool is build in Python3 and requires the shodan module.
 pip install shodan
 
+Second: place your API key in the script at **PLACE API KEY HERE**
+
 
 ## Usage
 **dns-shodanrecon**
