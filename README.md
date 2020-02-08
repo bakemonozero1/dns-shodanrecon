@@ -42,13 +42,14 @@ pip install shodan
     
 ## Screenshots
 **Terminal Output**
-![filescreenshot](https://github.com/bakemonozero1/dns-shodanrecon/blob/master/terminal-screenshot.png)
+![filescreenshot](https://github.com/bakemonozero1/dns-shodanrecon/blob/master/screenshots/terminal-screenshot.png)
 
 **File Output**
-![filescreenshot](https://github.com/bakemonozero1/dns-shodanrecon/blob/master/file-screenshot.png)
+![filescreenshot](https://github.com/bakemonozero1/dns-shodanrecon/blob/master/screenshots/file-screenshot.png)
 
 
 ## Future
 
  - Duplicate check 
+ - Create Better Banner
  - Verbose output
