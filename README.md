@@ -17,9 +17,20 @@ pip install shodan
 **dns-shodanrecon**
 
 **-h:** Displays help text
+
+    dns-shodanrecon -h
+
 **-u:** Parses a single domain to url ans returns shodan results
+
+    dns-shodanrecon -u google.com
+
 **-l :** Parses a list of domains to url and returns al shodan results
+
+    dns-shodanrecon -l domainlist.txt
+
 **-f:** Outputs to file, this option created a directory in the home folder and save one file per domain
+
+    dns-shodanrecon -l domainlist.txt -f
 
 
 ## Example of domain file
@@ -28,6 +39,12 @@ pip install shodan
     facebook.com
     github.com
     instagram.com
+    
+## Screenshots
+**Terminal Output**
+![filescreenshot](https://github.com/bakemonozero1/dns-shodanrecon/blob/master/terminal-screenshot.png)
+**File Output**
+![filescreenshot](https://github.com/bakemonozero1/dns-shodanrecon/blob/master/file-screenshot.png)
 
 
 ## Future
