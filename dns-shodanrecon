@@ -1,0 +1,286 @@
+#!/bin/env python3
+
+import socket
+import argparse
+import sys
+import os
+import shodan
+
+#PLACE API KEY HERE
+SHODAN_API_KEY = ''
+
+
+#Define Colors for ease of work
+normal = '\033[0m'
+good = '\033[1;32;1m'
+fail = '\033[1;31;1m'
+blueok = '\033[1;34;1m'
+purple = '\033[1;35;1m'
+cyan = '\033[1;36;1m'
+warning = '\033[1;33;1m'
+boldWhite = '\033[1;37;1m'
+cat = '\n\033[1;37;1m/ᐠ ._. ᐟ\\ﾉ\n'
+Acat = '/ᐠ┛*｀Д´ᐟ\┛・・~~┻━┻　┳━┳\n'
+
+getHome = os.getenv('HOME')
+directory = getHome + "/dns-shodanrecon-results/"
+
+
+#banner
+def banner():
+	print('''{}                                                      
+   ___   _  __ ____                                          
+  / _ \ / |/ // __/                                          
+ / // //    /_\ \                                            
+/____//_/|_//___/                                            
+   ____ __           __             ___                      
+  / __// /  ___  ___/ /___ _ ___   / _ \ ___  ____ ___   ___ 
+ _\ \ / _ \/ _ \/ _  // _ `// _ \ / , _// -_)/ __// _ \ / _ \
+
+/___//_//_/\___/\_,_/ \_,_//_//_//_/|_| \__/ \__/ \___//_//_/
+                                                             
+{}'''.format(cyan, normal))
+	print ('{}creator:{} Bakemonozero1{}'.format(boldWhite, cyan, normal))
+
+#Simple function for yes to continu
+def yes_or_no(question):
+	reply = input(question).lower()
+	if reply == 'y':
+		return 'yes'
+	elif reply == 'n':
+		return 'no'
+	else:
+		return yes_or_no("{}{}[!] Please Enter (y/n) {}".format(warning, cat, normal))
+
+def dircheck(check, opt):
+	print('{}{}[!] Checking for directory and file existance{}'.format(boldWhite, cat, normal))
+	getExist = os.path.exists(directory)
+	path = directory
+	if getExist == False:
+		try:
+			os.makedirs(path)
+			print ('{}[+] \'{}\' Created'.format(good, path, normal))
+		except OSError:
+			print ('\n{}{}[-] Failed to create {}{} \n'.format(fail, Acat, path, normal))
+			exit()
+	else:
+		print ('{}[+] \'{}\' Already exists, placing files here'.format(good, path, normal))
+
+	
+	if opt == 'single':
+		check = directory + check
+		if os.path.exists(check):
+			print('{}{}[-] There is already a previous file named: \'{}\'{}\n'.format(fail, Acat, check, normal))
+			reply = yes_or_no('{}{}[!] \'yes\' to delete, \'no\' to exit. y/n?{}'.format(warning, cat, normal))
+			if reply == 'yes':
+				os.remove(check)
+			else:
+				exit()
+
+	elif opt == 'multi':
+		try:
+			with open(check) as checker:
+				for name in checker:
+					name = name.rstrip('\n')
+					check = directory + name
+					if os.path.exists(check):
+						print('{}{}[-] There is already a previous file named: \'{}\'{}\n'.format(fail, Acat, name, normal))
+						reply = yes_or_no('{}{}[!] \'yes\' to delete, \'no\' to exit. y/n?{}'.format(warning, cat, normal))
+						if reply == 'yes':
+							os.remove(check)
+						else:
+							exit()
+		except FileNotFoundError:
+			print("{}{}[-] File {} does not exists or is not accessible. exiting {}".format(fail, Acat, check, normal))
+			exit()
+
+def writetofile(filename, sub, key, value):
+	if writetofiles:
+		operation = 'a+'
+		path = directory + filename
+		if sub == 'h':
+			with open(path, operation) as f:
+				f.write('{}\n'.format(key))
+				f.close()
+				operation = 'a+'
+		else:
+			with open(path, operation) as f:
+				f.write('{} : {}\n'.format(key, value))
+				f.close()
+				operation = 'a+'
+
+
+#function to resolve url's
+def lookup(file, type):
+	ipdict={}
+	if type == 'multi':
+		try:
+			with open(file) as f:
+				print('{}{}[!] Resolving url\'s to ip addresses{}'.format(boldWhite, cat, normal))
+				for url in f:
+					url = url.rstrip('\n')
+					#print (url)
+					try:
+						ip = socket.gethostbyname(url)
+						print ('{}[+]{} Resolved \'{}{}{}\' to ip: {}{}{}'.format(good, boldWhite, good, url, boldWhite, good, ip, normal))
+						ipdict[url] = ip
+					except:
+						print('{}{}[-] Can\'t resolve "{}"{}'.format(fail, Acat, url, normal))
+			f.close()
+			return ipdict
+		except FileNotFoundError:
+			print("{}{}[-] File {} not accessible. exiting {}".format(fail, Acat, file, normal))
+			exit()
+	elif type == "single":
+		try:
+			print('{}{}[!] Resolving url\'s to ip addresses{}'.format(cat, boldWhite, normal))
+			ip = socket.gethostbyname(file)
+			print ('{}[+]{} Resolved \'{}{}{}\' to ip: {}{}{}'.format(good, boldWhite, good, file, boldWhite, good, ip, normal))
+			#print (ip)
+			ipdict[file] = ip
+			return ipdict
+		except:
+			print('{}{}[-] Can\'t resolve "{}"{}'.format(fail, Acat, file, normal))
+			exit()
+
+#Parsing shodan results
+def parseresult(results, url):
+	print ('{}{}[+]{} Found results for \'{}{}{}\''.format(cat, good, boldWhite, good, results['ip_str'], normal))
+	print ('{}-------- Summery --------{}'.format(boldWhite, normal))
+	writetofile(url, 'h', '------------- Summery -------------', '')
+	if 'last update' in results and results['last_update']:
+		print ('{}Last Update       :{} {}{}'.format(boldWhite, good, results['last_update'], normal))
+		writetofile(url, 's', 'last update', results['last_update'])
+	if 'hostnames' in results and results['hostnames']:
+		print ('{}Hostnames         :{} {}{}'.format(boldWhite, good, str(results['hostnames'])[1:-1], normal))
+		writetofile(url, 's', 'hostnames', results['hostnames'])
+	if 'domains' in results and results['domains']:
+		print ('{}Domains           :{} {}{}'.format(boldWhite, good, str(results['domains'])[1:-1], normal))
+		writetofile(url, 's', 'Domains', results['domains'])
+	if 'os' in results and results['os']:
+		print ('{}Operating System  :{} {}{}'.format(boldWhite, good, results['os'], normal))
+		writetofile(url, 's', 'os', results['os'])
+	if 'ports' in results and results['ports']:
+		print ('{}Open Ports        :{} {}{}'.format(boldWhite, good, str(results['ports'])[1:-1], normal))
+		writetofile(url, 's', 'ports', results['ports'])
+	if 'data' in results and results['data']:
+		for dataset in results['data']:
+			print ('\n{}-------- Details --------{}'.format(boldWhite, normal))
+			writetofile(url, 'h', '\n------------- Details -------------', '')
+			if 'port' in dataset and dataset['port']:
+				print ('{}Port: {}{}{}'.format(boldWhite, good, dataset['port'], normal))
+				writetofile(url, 'd', 'Port', dataset['port'])
+			if 'isp' in results and dataset['isp']:
+				print ('{}ISP: {}{}{}'.format(boldWhite, good, dataset['isp'], normal))
+				writetofile(url, 'd', 'ISP', dataset['isp'])
+			if 'transport' in results and dataset['transport']:
+				print ('{}Transport: {}{}{}'.format(boldWhite, good, dataset['transport'], normal))
+				writetofile(url, 'd', 'Transport', dataset['transport'])
+			if 'version' in results and dataset['version']:
+				print ('{}Version: {}{}{}'.format(boldWhite, good, dataset['version'], normal))
+				writetofile(url, 'd' , 'Version', dataset['version'])
+			if 'product' in results and dataset['product']:
+				print ('{}Product: {}{}{}'.format(boldWhite, good, dataset['product'], normal))				
+				writetofile(url, 'd', 'Product', dataset['product'])
+			if 'info' in results and dataset['product']:
+				print ('{}Info: {}{}{}'.format(boldWhite, good, dataset['info'], normal))
+				writetofile(url, 'd', 'Info', dataset['info'])
+			if 'location' in results and dataset['location']:
+				print ('{}location: {}{}{}'.format(boldWhite, good, dataset['location'], normal))
+				writetofile(url, 'd', 'Port', dataset['port'])
+			if 'org' in results and dataset['org']:
+				print ('{}org: {}{}{}'.format(boldWhite, good, dataset['org'], normal))
+				writetofile(url, 'd', 'Origin', dataset['org'])
+			if 'cpe' in results and dataset['cpe']:
+				print ('{}cpe: {}{}{}'.format(boldWhite, good, dataset['cpe'], normal))
+				writetofile(url, 'd', 'cpe', dataset['cpe'])
+			if 'opts' in results and dataset['opts']:
+				print ('{}Extra\'s: {}{}{}'.format(boldWhite, good, dataset['opts'], normal))
+				writetofile(url, 'd', 'Opts', dataset['opts'])
+
+			if 'http' in dataset and dataset['http']:
+				print ('\n{}HTTP information{}'.format(boldWhite, normal))
+				writetofile(url, 'h', '\nHTTP information', '')
+				if 'server' in dataset['http'] and dataset['http']['server']:
+					print ('{}Server: {}{}{}'.format(boldWhite, good, dataset['http']['server'], normal))
+					writetofile(url, 'd', 'Server', dataset['http']['server'])
+				if 'title' in dataset['http'] and dataset['http']['title']:
+					print ('{}Title: {}{}{}'.format(boldWhite, good, dataset['http']['title'], normal))
+					writetofile(url, 'd', 'Title', dataset['http']['title'])
+				if 'host' in dataset['http'] and dataset['http']['host']:
+					print ('{}Host: {}{}{}'.format(boldWhite, good, dataset['http']['host'], normal))
+					writetofile(url, 'd', 'Host', dataset['http']['host'])
+				if 'robots' in dataset['http'] and dataset['http']['robots']:
+					print ('{}Robots: {}{}{}'.format(boldWhite, good, dataset['http']['robots'], normal))
+					writetofile(url, 'd', 'Robots', dataset['http']['robots'])
+				if 'redirects' in dataset['http'] and dataset['http']['redirects']:
+					print ('{}Redirects: {}{}{}'.format(boldWhite, good, dataset['http']['redirects'], normal))
+					writetofile(url, 'd', 'Redirects', dataset['http']['redirects'])
+				if 'securitytxt' in dataset['http'] and dataset['http']['securitytxt']:
+					print ('{}Securitytxt: {}{}{}'.format(boldWhite, good, dataset['http']['securitytxt'], normal))
+					writetofile(url, 'd', 'Securitytxt', dataset['http']['securitytxt'])
+				if 'securitytxt_hash' in dataset['http'] and dataset['http']['securitytxt_hash']:
+					print ('{}Securitytxt_hash: {}{}{}'.format(boldWhite, good, dataset['http']['securitytxt_hash'], normal))
+					writetofile(url, 'd', 'Securitytxt_hash', dataset['http']['securitytxt_hash'])
+				if 'components' in dataset['http'] and dataset['http']['components']:
+					print ('{}Components: {}{}{}'.format(boldWhite, good, dataset['http']['components'], normal))
+					writetofile(url, 'd', 'Components', dataset['http']['components'])
+
+	print ('{}[!] Thats all for host {}\'{}\'{}'.format(cat, good, results['ip_str'], normal))
+	print ('{}-------------------------------------------{}'.format(boldWhite, normal)) 
+
+
+#Shodan Query
+def shodanlookup(ipdict):
+	for key in ipdict:
+		try:
+			print('\n{}{}[!] Accesing Shodan, searching for host: {}{}{}'.format(boldWhite, cat, good, ipdict[key], normal))
+			print('{}[+]{} URL: {}{}{}'.format(good, boldWhite, good, key, normal))
+			api = shodan.Shodan(SHODAN_API_KEY)
+			results = api.host(ipdict[key])
+			if results['ip']:
+				parseresult(results, key)
+			else:
+				print ('No shodan results found')
+		except shodan.APIError as e:
+			print('Error: {}'.format(e))
+
+
+#Argument parser
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+groupex = parser.add_mutually_exclusive_group()
+groupex.add_argument("-u", "--url", help="Supply url for lookup")
+groupex.add_argument("-l", "--list", help="Supply list of urls to lookup")
+#arser.add_argument("-v", "--verbose", help="verbose output", action="store_true")
+parser.add_argument("-f", "--file", help="stores in directory in home folder", action="store_true")
+
+args = parser.parse_args()
+
+#Init of parser variablen
+singleurl = args.url
+filelist = args.list
+#verbose = args.verbose
+writetofiles = args.file
+
+banner()
+
+if singleurl:
+	if writetofiles:
+		dircheck(singleurl, 'single')
+	ips = lookup(singleurl, 'single')
+	if SHODAN_API_KEY:
+		shodanlookup(ips)
+		print ('\n{}{}[!] All done nyaaan'.format(boldWhite, cat, normal))
+	else:
+		print('\n{}{}[-] No Shodan API key found, skipping shodan search{}'.format(fail, Acat, normal))
+		exit()
+elif filelist:
+	if writetofiles:
+		dircheck(filelist, 'multi')
+	ips = lookup(filelist, 'multi')
+	if SHODAN_API_KEY:
+		shodanlookup(ips)
+		print ('\n{}{}[!] All done nyaaan\n'.format(boldWhite, cat, normal))
+	else:
+		print('\n{}{}[-] No Shodan API key found, skipping shodan search{}\n'.format(fail, Acat, normal))
+		exit()
